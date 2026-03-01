@@ -1,15 +1,19 @@
-# ── Stage 1: Build frontend ────────────────────────────
-FROM node:22-alpine AS frontend-build
+# ── Single-stage build (memory-efficient for Railway free tier) ──
+FROM node:20-slim
 
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Build frontend
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+RUN npm install --ignore-scripts
 COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Build backend ─────────────────────────────
-FROM node:22-alpine AS backend-build
+# Clean up frontend node_modules to free memory
+RUN rm -rf node_modules
 
+# Build backend
 WORKDIR /app/backend
 COPY backend/package.json backend/package-lock.json* ./
 RUN npm install
@@ -17,33 +21,19 @@ COPY backend/ ./
 RUN npx prisma generate
 RUN npx tsc
 
-# ── Stage 3: Production image ──────────────────────────
-FROM node:22-alpine AS production
-
-RUN apk add --no-cache openssl
-
-WORKDIR /app
-
-# Copy backend dist + node_modules + prisma
-COPY --from=backend-build /app/backend/dist ./dist
-COPY --from=backend-build /app/backend/node_modules ./node_modules
-COPY --from=backend-build /app/backend/package.json ./package.json
-COPY --from=backend-build /app/backend/prisma ./prisma
-COPY --from=backend-build /app/backend/start.sh ./start.sh
-
-# Copy frontend build output into backend's public directory
-COPY --from=frontend-build /app/frontend/dist ./public
+# Move frontend build into backend's public directory
+RUN mv /app/frontend/dist /app/backend/public
 
 # Make start script executable
 RUN chmod +x start.sh
 
-# Create data directory for SQLite (will be mounted as volume)
+# Create data directory for SQLite volume
 RUN mkdir -p /data
 
-# Expose port
+WORKDIR /app/backend
+
 EXPOSE 3000
 
-# Environment defaults
 ENV NODE_ENV=production
 ENV PORT=3000
 
