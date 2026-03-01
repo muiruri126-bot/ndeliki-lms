@@ -43,4 +43,4 @@ uploads/
 coverage/
 
 # Original HTML file (not needed for deploy)
-*.html
+/NDELIKI*.html
