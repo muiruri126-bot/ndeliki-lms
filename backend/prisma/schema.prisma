@@ -1,0 +1,363 @@
+// Prisma schema — SQLite (file-based, no DB server needed)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Authentication ────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  phone               String?   @unique
+  password            String    @map("password_hash")
+  firstName           String    @map("first_name")
+  lastName            String    @map("last_name")
+  isActive            Boolean   @default(true) @map("is_active")
+  isEmailVerified     Boolean   @default(false) @map("is_email_verified")
+  mfaEnabled          Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret           String?   @map("mfa_secret")
+  lastLoginAt         DateTime? @map("last_login_at")
+  lastLoginIp         String?   @map("last_login_ip")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  passwordChangedAt   DateTime  @default(now()) @map("password_changed_at")
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  userRoles           UserRole[]
+  auditLogs           AuditLog[]
+  processedPayments   Payment[]      @relation("ProcessedBy")
+  reversedPayments    Payment[]      @relation("ReversedBy")
+  officerBorrowers    Borrower[]     @relation("AssignedOfficer")
+  officerLoans        Loan[]         @relation("OfficerLoans")
+  approvedLoans       Loan[]         @relation("ApprovedLoans")
+  writtenOffLoans     Loan[]         @relation("WrittenOffLoans")
+  notifications       Notification[]
+  configUpdates       SystemConfig[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  permissions String     @default("[]")
+  isSystem    Boolean    @default(false) @map("is_system")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId     String   @map("user_id")
+  roleId     String   @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  assignedBy String?  @map("assigned_by")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─── Borrowers ─────────────────────────────────────────────────────
+
+model Borrower {
+  id                    String    @id @default(uuid())
+  firstName             String    @map("first_name")
+  lastName              String    @map("last_name")
+  phone                 String
+  alternativePhone      String?   @map("alternative_phone")
+  nationalId            String    @unique @map("national_id")
+  email                 String?
+  dateOfBirth           DateTime? @map("date_of_birth")
+  gender                String?
+  address               String?
+  county                String?
+  subCounty             String?   @map("sub_county")
+  ward                  String?
+  occupation            String?
+  employer              String?
+  monthlyIncome         Decimal?  @map("monthly_income")
+  nextOfKinName         String?   @map("next_of_kin_name")
+  nextOfKinPhone        String?   @map("next_of_kin_phone")
+  nextOfKinRelationship String?   @map("next_of_kin_relationship")
+  riskRating            String    @default("STANDARD") @map("risk_rating")
+  notes                 String?
+  assignedOfficerId     String?   @map("assigned_officer_id")
+  isActive              Boolean   @default(true) @map("is_active")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  assignedOfficer User?      @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id])
+  loans           Loan[]
+  documents       Document[]
+
+  @@index([nationalId])
+  @@index([phone])
+  @@index([assignedOfficerId])
+  @@index([riskRating])
+  @@map("borrowers")
+}
+
+// ─── Loan Products (Templates) ────────────────────────────────────
+
+model LoanProduct {
+  id                  String   @id @default(uuid())
+  name                String
+  description         String?
+  interestMethod      String   @map("interest_method")
+  interestRate        Decimal  @map("interest_rate")
+  interestPeriod      String   @map("interest_period")
+  durationUnit        String   @map("duration_unit")
+  repaymentFrequency  String   @map("repayment_frequency")
+  minAmount           Decimal  @default(1000) @map("min_amount")
+  maxAmount           Decimal  @default(1000000) @map("max_amount")
+  minDurationUnits    Int      @default(1) @map("min_duration_units")
+  maxDurationUnits    Int      @default(52) @map("max_duration_units")
+  penaltyRate         Decimal  @default(0) @map("penalty_rate")
+  penaltyGraceDays    Int      @default(0) @map("penalty_grace_days")
+  requiresApproval    Boolean  @default(true) @map("requires_approval")
+  approvalLimit       Decimal? @map("approval_limit")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  loans Loan[]
+
+  @@map("loan_products")
+}
+
+// ─── Loans ─────────────────────────────────────────────────────────
+
+model Loan {
+  id                     String    @id @default(uuid())
+  loanNumber             String    @unique @map("loan_number")
+  borrowerId             String    @map("borrower_id")
+  loanProductId          String    @map("loan_product_id")
+  officerId              String    @map("officer_id")
+  approvedById           String?   @map("approved_by_id")
+  principalAmount        Decimal   @map("principal_amount")
+  interestRate           Decimal   @map("interest_rate")
+  interestMethod         String    @map("interest_method")
+  durationValue          Int       @map("duration_value")
+  durationUnit           String    @map("duration_unit")
+  repaymentFrequency     String    @map("repayment_frequency")
+  numberOfInstallments   Int       @map("number_of_installments")
+  installmentAmount      Decimal   @map("installment_amount")
+  totalInterest          Decimal   @map("total_interest")
+  totalDue               Decimal   @map("total_due")
+  totalPaid              Decimal   @default(0) @map("total_paid")
+  outstandingBalance     Decimal   @map("outstanding_balance")
+  totalPenalty           Decimal   @default(0) @map("total_penalty")
+  status                 String    @default("PENDING")
+  purpose                String?
+  notes                  String?
+  disbursedAt            DateTime? @map("disbursed_at")
+  maturityDate           DateTime? @map("maturity_date")
+  approvedAt             DateTime? @map("approved_at")
+  closedAt               DateTime? @map("closed_at")
+  writtenOffAt           DateTime? @map("written_off_at")
+  writtenOffBy           String?   @map("written_off_by")
+  writtenOffReason       String?   @map("written_off_reason")
+  disbursementMethod     String?   @map("disbursement_method")
+  disbursementReference  String?   @map("disbursement_reference")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  borrower     Borrower     @relation(fields: [borrowerId], references: [id])
+  loanProduct  LoanProduct  @relation(fields: [loanProductId], references: [id])
+  officer      User         @relation("OfficerLoans", fields: [officerId], references: [id])
+  approvedBy   User?        @relation("ApprovedLoans", fields: [approvedById], references: [id])
+  writeOffUser User?        @relation("WrittenOffLoans", fields: [writtenOffBy], references: [id])
+  schedules    LoanSchedule[]
+  payments     Payment[]
+  documents    Document[]
+
+  @@index([borrowerId])
+  @@index([officerId])
+  @@index([status])
+  @@index([maturityDate])
+  @@index([loanNumber])
+  @@index([status, maturityDate])
+  @@map("loans")
+}
+
+// ─── Loan Schedule (Installments) ─────────────────────────────────
+
+model LoanSchedule {
+  id                 String    @id @default(uuid())
+  loanId             String    @map("loan_id")
+  installmentNumber  Int       @map("installment_number")
+  dueDate            DateTime  @map("due_date")
+  principalAmount    Decimal   @map("principal_amount")
+  interestAmount     Decimal   @map("interest_amount")
+  totalAmount        Decimal   @map("total_amount")
+  paidAmount         Decimal   @default(0) @map("paid_amount")
+  penaltyAmount      Decimal   @default(0) @map("penalty_amount")
+  status             String    @default("PENDING")
+  paidAt             DateTime? @map("paid_at")
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@unique([loanId, installmentNumber])
+  @@index([loanId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("loan_schedule")
+}
+
+// ─── Payments ──────────────────────────────────────────────────────
+
+model Payment {
+  id              String    @id @default(uuid())
+  paymentNumber   String    @unique @map("payment_number")
+  loanId          String    @map("loan_id")
+  amount          Decimal
+  paymentDate     DateTime  @map("payment_date")
+  paymentMethod   String    @default("CASH") @map("payment_method")
+  reference       String?
+  status          String    @default("CONFIRMED")
+  notes           String?
+  processedById   String    @map("processed_by_id")
+  reversedById    String?   @map("reversed_by_id")
+  reversedAt      DateTime? @map("reversed_at")
+  reversalReason  String?   @map("reversal_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  loan        Loan  @relation(fields: [loanId], references: [id])
+  processedBy User  @relation("ProcessedBy", fields: [processedById], references: [id])
+  reversedBy  User? @relation("ReversedBy", fields: [reversedById], references: [id])
+
+  @@index([loanId])
+  @@index([paymentDate])
+  @@index([status])
+  @@index([reference])
+  @@map("payments")
+}
+
+// ─── Documents ─────────────────────────────────────────────────────
+
+model Document {
+  id           String   @id @default(uuid())
+  borrowerId   String   @map("borrower_id")
+  loanId       String?  @map("loan_id")
+  documentType String   @map("document_type")
+  fileName     String   @map("file_name")
+  filePath     String   @map("file_path")
+  fileSize     Int      @map("file_size")
+  mimeType     String   @map("mime_type")
+  uploadedBy   String   @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  borrower Borrower @relation(fields: [borrowerId], references: [id])
+  loan     Loan?    @relation(fields: [loanId], references: [id])
+
+  @@index([borrowerId])
+  @@index([loanId])
+  @@index([documentType])
+  @@map("documents")
+}
+
+// ─── Audit Logs ────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  changes    String?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ─── Notifications ─────────────────────────────────────────────────
+
+model Notification {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  type          String
+  channel       String
+  subject       String?
+  message       String
+  referenceType String?   @map("reference_type")
+  referenceId   String?   @map("reference_id")
+  status        String    @default("PENDING")
+  sentAt        DateTime? @map("sent_at")
+  readAt        DateTime? @map("read_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ─── System Configuration ──────────────────────────────────────────
+
+model SystemConfig {
+  key         String   @id
+  value       String
+  description String?
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  updater User? @relation(fields: [updatedBy], references: [id])
+
+  @@map("system_config")
+}
