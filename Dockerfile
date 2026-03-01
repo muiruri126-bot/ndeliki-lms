@@ -3,9 +3,12 @@ FROM node:20-slim
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Build frontend
+# Upgrade npm to fix "Invalid Version" bug in npm 10.8.x
+RUN npm install -g npm@10.9.2
+
+# Build frontend (skip lock file — let npm resolve fresh)
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY frontend/package.json ./
 RUN npm install --ignore-scripts
 COPY frontend/ ./
 RUN npm run build
@@ -13,9 +16,9 @@ RUN npm run build
 # Clean up frontend node_modules to free memory
 RUN rm -rf node_modules
 
-# Build backend
+# Build backend (skip lock file — let npm resolve fresh)
 WORKDIR /app/backend
-COPY backend/package.json backend/package-lock.json* ./
+COPY backend/package.json ./
 RUN npm install
 COPY backend/ ./
 RUN npx prisma generate
