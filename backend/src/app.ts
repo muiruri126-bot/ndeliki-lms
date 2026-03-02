@@ -58,6 +58,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
     message: 'NDELIKI LMS API is running',
+    version: '1.1.0',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV,
   });

@@ -30,7 +30,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(data.data);
           localStorage.setItem('user', JSON.stringify(data.data));
         })
-        .catch(() => {
+        .catch(async () => {
+          // Access token may be expired — try refresh
+          const storedRefreshToken = localStorage.getItem('refreshToken');
+          if (storedRefreshToken) {
+            try {
+              const { data: refreshData } = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
+              const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshData.data;
+              localStorage.setItem('accessToken', newAccessToken);
+              if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+              // Retry profile
+              const { data: profileData } = await api.get('/auth/profile');
+              setUser(profileData.data);
+              localStorage.setItem('user', JSON.stringify(profileData.data));
+              return;
+            } catch {
+              // Refresh also failed
+            }
+          }
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
