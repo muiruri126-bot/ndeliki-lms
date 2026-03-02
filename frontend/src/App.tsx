@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import BorrowerListPage from './pages/borrowers/BorrowerListPage';
 import BorrowerFormPage from './pages/borrowers/BorrowerFormPage';
@@ -14,6 +16,8 @@ import PaymentFormPage from './pages/payments/PaymentFormPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import UserListPage from './pages/users/UserListPage';
 import AuditLogPage from './pages/audit/AuditLogPage';
+import LoanProductListPage from './pages/products/LoanProductListPage';
+import ChangePasswordPage from './pages/settings/ChangePasswordPage';
 
 const STAFF_ROLES = ['SYSTEM_ADMIN', 'LOAN_OFFICER', 'ACCOUNTANT'];
 const ADMIN_ONLY = ['SYSTEM_ADMIN'];
@@ -23,6 +27,8 @@ export default function App() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Protected layout */}
       <Route
@@ -47,6 +53,14 @@ export default function App() {
           />
           <Route
             path="new"
+            element={
+              <ProtectedRoute roles={['SYSTEM_ADMIN', 'LOAN_OFFICER']}>
+                <BorrowerFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path=":id/edit"
             element={
               <ProtectedRoute roles={['SYSTEM_ADMIN', 'LOAN_OFFICER']}>
                 <BorrowerFormPage />
@@ -140,6 +154,19 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Loan Products - Admin only */}
+        <Route
+          path="products"
+          element={
+            <ProtectedRoute roles={ADMIN_ONLY}>
+              <LoanProductListPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Change Password - All authenticated */}
+        <Route path="change-password" element={<ChangePasswordPage />} />
       </Route>
 
       {/* Catch all */}

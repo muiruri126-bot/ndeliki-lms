@@ -2,6 +2,7 @@ import app from './app';
 import { env } from './config/env';
 import logger from './config/logger';
 import { prisma } from './config/database';
+import { startOverdueChecker } from './jobs/overdueChecker';
 
 async function main() {
   // Test database connection
@@ -15,6 +16,9 @@ async function main() {
 
   const server = app.listen(env.PORT, () => {
     logger.info(`NDELIKI LMS API server running on port ${env.PORT} [${env.NODE_ENV}]`);
+
+    // Start scheduled jobs
+    startOverdueChecker();
   });
 
   // Graceful shutdown

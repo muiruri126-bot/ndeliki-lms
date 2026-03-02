@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Landmark, Eye, EyeOff } from 'lucide-react';
@@ -99,6 +99,12 @@ export default function LoginPage() {
                 'Sign in'
               )}
             </button>
+
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm text-primary-600 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
           </form>
 
           <p className="mt-6 text-center text-xs text-gray-500">

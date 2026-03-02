@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   ChevronDown,
+  Package,
+  Lock,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -29,6 +31,7 @@ const navigation: NavItem[] = [
   { label: 'Loans', path: '/loans', icon: <Landmark size={20} />, roles: ['SYSTEM_ADMIN', 'LOAN_OFFICER', 'ACCOUNTANT'] },
   { label: 'Payments', path: '/payments', icon: <CreditCard size={20} />, roles: ['SYSTEM_ADMIN', 'LOAN_OFFICER', 'ACCOUNTANT'] },
   { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, roles: ['SYSTEM_ADMIN', 'LOAN_OFFICER', 'ACCOUNTANT'] },
+  { label: 'Products', path: '/products', icon: <Package size={20} />, roles: ['SYSTEM_ADMIN'] },
   { label: 'Users', path: '/users', icon: <UserCircle size={20} />, roles: ['SYSTEM_ADMIN'] },
   { label: 'Audit Log', path: '/audit', icon: <ClipboardList size={20} />, roles: ['SYSTEM_ADMIN'] },
 ];
@@ -143,6 +146,14 @@ export default function AppLayout() {
                     <p className="text-sm font-medium">{user?.email}</p>
                     <p className="text-xs text-gray-500">{user?.roles?.join(', ')}</p>
                   </div>
+                  <Link
+                    to="/change-password"
+                    onClick={() => setProfileOpen(false)}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <Lock size={16} />
+                    Change Password
+                  </Link>
                   <button
                     onClick={() => { setProfileOpen(false); logout(); }}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"

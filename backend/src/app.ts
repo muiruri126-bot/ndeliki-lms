@@ -14,6 +14,8 @@ import paymentRouter from './modules/payments/payment.routes';
 import reportRouter from './modules/reports/report.routes';
 import auditRouter from './modules/audit/audit.routes';
 import dashboardRouter from './modules/dashboard/dashboard.routes';
+import productRouter from './modules/products/product.routes';
+import documentRouter from './modules/documents/document.routes';
 
 const app = express();
 
@@ -67,6 +69,8 @@ app.use('/api/payments', paymentRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/products', productRouter);
+app.use('/api/documents', documentRouter);
 
 // ── Serve frontend static files in production ─────────
 const publicDir = path.join(__dirname, '..', 'public');

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { formatCurrency, formatDate } from '../../lib/utils';
-import { BarChart3, TrendingDown, Users, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingDown, Users, AlertTriangle, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 type TabKey = 'portfolio' | 'collections' | 'overdue' | 'officers';
 
@@ -22,7 +23,14 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
+        <div className="flex gap-2">
+          <ExportButton label="Borrowers" endpoint="/reports/export/borrowers" />
+          <ExportButton label="Loans" endpoint="/reports/export/loans" />
+          <ExportButton label="Payments" endpoint="/reports/export/payments" />
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-gray-100 rounded-lg p-1">
@@ -323,6 +331,36 @@ function OfficerReport({ dateRange }: { dateRange: { startDate: string; endDate:
         </table>
       </div>
     </div>
+  );
+}
+
+function ExportButton({ label, endpoint }: { label: string; endpoint: string }) {
+  const [loading, setLoading] = useState(false);
+  const handleExport = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get(endpoint, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = response.headers['content-disposition'];
+      const filename = disposition ? disposition.split('filename=')[1]?.replace(/"/g, '') : `${label.toLowerCase()}.csv`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`${label} exported`);
+    } catch {
+      toast.error(`Failed to export ${label.toLowerCase()}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <button className="btn-secondary text-sm flex items-center gap-1" onClick={handleExport} disabled={loading}>
+      <Download size={14} /> {loading ? 'Exporting...' : `Export ${label}`}
+    </button>
   );
 }
 

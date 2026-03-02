@@ -1,13 +1,18 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
 import { formatCurrency, formatDate, statusBadgeClass } from '../../lib/utils';
-import { ArrowLeft, Phone, Mail, MapPin, Briefcase, User, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Briefcase, User, AlertTriangle, Edit, FileUp, Trash2, Download } from 'lucide-react';
 import type { Borrower, Loan } from '../../types';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 export default function BorrowerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
 
   const { data: borrower, isLoading, error } = useQuery<Borrower & { loans?: Loan[]; stats?: any }>({
     queryKey: ['borrower', id],
@@ -40,7 +45,8 @@ export default function BorrowerDetailPage() {
             <p className="text-sm text-gray-500">National ID: {borrower.nationalId}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate(`/borrowers/${borrower.id}/edit`)} className="btn-secondary text-sm flex items-center gap-1"><Edit size={16} /> Edit</button>
           <span className={`badge ${borrower.isActive ? 'badge-green' : 'badge-red'}`}>{borrower.isActive ? 'Active' : 'Inactive'}</span>
           {borrower.riskRating && <span className={`badge ${statusBadgeClass(borrower.riskRating)}`}>{borrower.riskRating}</span>}
         </div>
@@ -168,6 +174,169 @@ export default function BorrowerDetailPage() {
           <h3 className="text-lg font-semibold mb-2">Notes</h3>
           <p className="text-sm text-gray-600 whitespace-pre-wrap">{borrower.notes}</p>
         </div>
+      )}
+
+      {/* Documents Section */}
+      <DocumentSection borrowerId={borrower.id} />
+    </div>
+  );
+}
+
+function DocumentSection({ borrowerId }: { borrowerId: string }) {
+  const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
+  const [showUpload, setShowUpload] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState('ID_COPY');
+
+  const { data: docs } = useQuery({
+    queryKey: ['documents', borrowerId],
+    queryFn: async () => {
+      const { data } = await api.get(`/documents/borrower/${borrowerId}`);
+      return data.data;
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error('No file');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('borrowerId', borrowerId);
+      formData.append('documentType', docType);
+      await api.post('/documents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => {
+      toast.success('Document uploaded');
+      queryClient.invalidateQueries({ queryKey: ['documents', borrowerId] });
+      setShowUpload(false);
+      setFile(null);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Upload failed'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (docId: string) => {
+      await api.delete(`/documents/${docId}`);
+    },
+    onSuccess: () => {
+      toast.success('Document deleted');
+      queryClient.invalidateQueries({ queryKey: ['documents', borrowerId] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Delete failed'),
+  });
+
+  const handleDownload = async (docId: string, fileName: string) => {
+    try {
+      const resp = await api.get(`/documents/${docId}/download`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([resp.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Download failed');
+    }
+  };
+
+  const docTypes = ['ID_COPY', 'PASSPORT', 'KRA_PIN', 'PAYSLIP', 'BANK_STATEMENT', 'COLLATERAL', 'CONTRACT', 'OTHER'];
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-semibold flex items-center gap-2"><FileUp size={18} /> Documents</h3>
+        {(hasRole('SYSTEM_ADMIN') || hasRole('LOAN_OFFICER')) && (
+          <button className="btn-primary text-sm" onClick={() => setShowUpload(!showUpload)}>
+            <FileUp size={14} className="mr-1" /> Upload
+          </button>
+        )}
+      </div>
+
+      {showUpload && (
+        <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Document Type</label>
+              <select className="input" value={docType} onChange={(e) => setDocType(e.target.value)}>
+                {docTypes.map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">File</label>
+              <input
+                type="file"
+                className="input"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="btn-primary text-sm"
+              onClick={() => uploadMutation.mutate()}
+              disabled={!file || uploadMutation.isPending}
+            >
+              {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+            </button>
+            <button className="btn-secondary text-sm" onClick={() => setShowUpload(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {docs && docs.length > 0 ? (
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>File Name</th>
+                <th>Size</th>
+                <th>Uploaded</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {docs.map((d: any) => (
+                <tr key={d.id}>
+                  <td className="font-medium text-sm">{d.documentType.replace(/_/g, ' ')}</td>
+                  <td className="text-sm">{d.fileName}</td>
+                  <td className="text-sm text-gray-500">{(d.fileSize / 1024).toFixed(1)} KB</td>
+                  <td className="text-sm text-gray-500">{formatDate(d.createdAt)}</td>
+                  <td>
+                    <div className="flex gap-1">
+                      <button
+                        className="btn-secondary px-2 py-1 text-xs"
+                        onClick={() => handleDownload(d.id, d.fileName)}
+                        title="Download"
+                      >
+                        <Download size={12} />
+                      </button>
+                      {hasRole('SYSTEM_ADMIN') && (
+                        <button
+                          className="btn-danger px-2 py-1 text-xs"
+                          onClick={() => { if (confirm('Delete this document?')) deleteMutation.mutate(d.id); }}
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm">No documents uploaded yet.</p>
       )}
     </div>
   );

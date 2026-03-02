@@ -1,37 +1,76 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 
+const emptyForm = {
+  firstName: '', lastName: '', phone: '', nationalId: '',
+  email: '', alternativePhone: '', dateOfBirth: '', gender: '',
+  address: '', county: '', subCounty: '', ward: '',
+  occupation: '', employer: '', monthlyIncome: '',
+  nextOfKinName: '', nextOfKinPhone: '', nextOfKinRelationship: '',
+  riskRating: 'STANDARD', notes: '',
+};
+
 export default function BorrowerFormPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    firstName: '', lastName: '', phone: '', nationalId: '',
-    email: '', alternativePhone: '', dateOfBirth: '', gender: '',
-    address: '', county: '', subCounty: '', ward: '',
-    occupation: '', employer: '', monthlyIncome: '',
-    nextOfKinName: '', nextOfKinPhone: '', nextOfKinRelationship: '',
-    riskRating: 'STANDARD', notes: '',
+  const { id } = useParams<{ id: string }>();
+  const isEdit = !!id;
+  const [form, setForm] = useState(emptyForm);
+
+  // Load borrower data in edit mode
+  const { data: borrower, isLoading: loadingBorrower } = useQuery({
+    queryKey: ['borrower', id],
+    queryFn: async () => { const { data } = await api.get(`/borrowers/${id}`); return data.data; },
+    enabled: isEdit,
   });
+
+  useEffect(() => {
+    if (borrower) {
+      setForm({
+        firstName: borrower.firstName || '',
+        lastName: borrower.lastName || '',
+        phone: borrower.phone || '',
+        nationalId: borrower.nationalId || '',
+        email: borrower.email || '',
+        alternativePhone: borrower.alternativePhone || '',
+        dateOfBirth: borrower.dateOfBirth ? borrower.dateOfBirth.slice(0, 10) : '',
+        gender: borrower.gender || '',
+        address: borrower.address || '',
+        county: borrower.county || '',
+        subCounty: borrower.subCounty || '',
+        ward: borrower.ward || '',
+        occupation: borrower.occupation || '',
+        employer: borrower.employer || '',
+        monthlyIncome: borrower.monthlyIncome ? String(borrower.monthlyIncome) : '',
+        nextOfKinName: borrower.nextOfKinName || '',
+        nextOfKinPhone: borrower.nextOfKinPhone || '',
+        nextOfKinRelationship: borrower.nextOfKinRelationship || '',
+        riskRating: borrower.riskRating || 'STANDARD',
+        notes: borrower.notes || '',
+      });
+    }
+  }, [borrower]);
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
       const payload = { ...data };
       if (payload.monthlyIncome) payload.monthlyIncome = parseFloat(payload.monthlyIncome);
       else delete payload.monthlyIncome;
-      // Remove empty strings
       Object.keys(payload).forEach((k) => { if (payload[k] === '') delete payload[k]; });
-      const res = await api.post('/borrowers', payload);
+      const res = isEdit
+        ? await api.put(`/borrowers/${id}`, payload)
+        : await api.post('/borrowers', payload);
       return res.data.data;
     },
     onSuccess: (data) => {
-      toast.success('Borrower created successfully');
+      toast.success(isEdit ? 'Borrower updated successfully' : 'Borrower created successfully');
       navigate(`/borrowers/${data.id}`);
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to create borrower');
+      toast.error(err.response?.data?.message || 'Failed to save borrower');
     },
   });
 
@@ -50,7 +89,7 @@ export default function BorrowerFormPage() {
         <button onClick={() => navigate(-1)} className="btn-secondary p-2">
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-2xl font-bold text-gray-800">Add New Borrower</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{isEdit ? 'Edit Borrower' : 'Add New Borrower'}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -177,7 +216,7 @@ export default function BorrowerFormPage() {
         <div className="flex justify-end">
           <button type="submit" disabled={mutation.isPending} className="btn-primary px-8">
             <Save size={18} className="mr-2" />
-            {mutation.isPending ? 'Saving...' : 'Save Borrower'}
+            {mutation.isPending ? 'Saving...' : isEdit ? 'Update Borrower' : 'Save Borrower'}
           </button>
         </div>
       </form>

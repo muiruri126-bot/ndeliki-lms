@@ -5,7 +5,7 @@ import { formatCurrency, formatDate, statusBadgeClass } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
-  ArrowLeft, CheckCircle, XCircle, Banknote, FileWarning, CreditCard,
+  ArrowLeft, CheckCircle, XCircle, Banknote, FileWarning, CreditCard, RotateCcw,
 } from 'lucide-react';
 import type { Loan } from '../../types';
 
@@ -52,6 +52,22 @@ export default function LoanDetailPage() {
   const handleWriteOff = () => {
     const reason = prompt('Write-off reason:');
     if (reason) actionMutation.mutate({ action: 'write-off', body: { reason } });
+  };
+
+  const reverseMutation = useMutation({
+    mutationFn: async ({ paymentId, reason }: { paymentId: string; reason: string }) => {
+      await api.post(`/payments/${paymentId}/reverse`, { reason });
+    },
+    onSuccess: () => {
+      toast.success('Payment reversed successfully');
+      queryClient.invalidateQueries({ queryKey: ['loan', id] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Reversal failed'),
+  });
+
+  const handleReverse = (paymentId: string) => {
+    const reason = prompt('Reason for reversal:');
+    if (reason) reverseMutation.mutate({ paymentId, reason });
   };
 
   if (isLoading) return <div className="flex justify-center py-20"><div className="animate-spin h-10 w-10 border-4 border-primary-500 border-t-transparent rounded-full" /></div>;
@@ -204,6 +220,7 @@ export default function LoanDetailPage() {
                   <th>Method</th>
                   <th>Reference</th>
                   <th>Status</th>
+                  {isAdmin && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -215,6 +232,19 @@ export default function LoanDetailPage() {
                     <td>{p.paymentMethod}</td>
                     <td className="text-sm text-gray-500">{p.referenceNumber || '—'}</td>
                     <td><span className={`badge ${p.status === 'REVERSED' ? 'badge-red' : 'badge-green'}`}>{p.status}</span></td>
+                    {isAdmin && (
+                      <td>
+                        {p.status === 'COMPLETED' && (
+                          <button
+                            className="btn-danger px-2 py-1 text-xs flex items-center gap-1"
+                            onClick={() => handleReverse(p.id)}
+                            disabled={reverseMutation.isPending}
+                          >
+                            <RotateCcw size={12} /> Reverse
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

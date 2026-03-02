@@ -128,6 +128,19 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface Document {
+  id: string;
+  borrowerId: string;
+  loanId?: string;
+  documentType: string;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 export interface DashboardData {
   cards: {
     totalBorrowers: number;
