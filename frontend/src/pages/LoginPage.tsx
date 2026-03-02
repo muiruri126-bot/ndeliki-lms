@@ -107,7 +107,14 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <p className="mt-6 text-center text-xs text-gray-500">
+          <p className="mt-5 text-center text-sm text-gray-600">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-primary-600 font-medium hover:underline">
+              Sign up
+            </Link>
+          </p>
+
+          <p className="mt-4 text-center text-xs text-gray-500">
             &copy; {new Date().getFullYear()} NDELIKI LIMITED. All rights reserved.
           </p>
         </div>
