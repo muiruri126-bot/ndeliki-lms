@@ -86,7 +86,7 @@ async function main() {
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@ndeliki.co.ke' },
-    update: {},
+    update: { password: adminPasswordHash },
     create: {
       email: 'admin@ndeliki.co.ke',
       phone: '0700000000',
@@ -118,7 +118,7 @@ async function main() {
 
   const officerUser = await prisma.user.upsert({
     where: { email: 'officer@ndeliki.co.ke' },
-    update: {},
+    update: { password: officerPasswordHash },
     create: {
       email: 'officer@ndeliki.co.ke',
       phone: '0700000001',
