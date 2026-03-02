@@ -23,6 +23,8 @@ RUN npm install
 COPY backend/ ./
 RUN npx prisma generate
 RUN npx tsc
+# Compile seed for production (not part of main tsconfig)
+RUN npx tsc prisma/seed.ts --outDir prisma --target ES2022 --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule --moduleResolution node
 
 # Move frontend build into backend's public directory
 RUN mv /app/frontend/dist /app/backend/public
