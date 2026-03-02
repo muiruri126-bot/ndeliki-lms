@@ -19,6 +19,9 @@ import documentRouter from './modules/documents/document.routes';
 
 const app = express();
 
+// Trust Railway / reverse proxy (needed for secure cookies & rate limiting)
+app.set('trust proxy', 1);
+
 // ── Security ──────────────────────────────────────────
 app.use(
   helmet({
