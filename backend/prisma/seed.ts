@@ -84,25 +84,27 @@ async function main() {
 
   const adminPasswordHash = await bcrypt.hash('Admin@2026!', 12);
 
-  const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@ndeliki.co.ke' },
-    update: {
-      password: adminPasswordHash,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      isActive: true,
-    },
-    create: {
-      email: 'admin@ndeliki.co.ke',
-      phone: '0700000000',
-      password: adminPasswordHash,
-      firstName: 'System',
-      lastName: 'Administrator',
-      isActive: true,
-      isEmailVerified: true,
-      mustChangePassword: false,
-    },
-  });
+  // Find or create admin user, always reset password & unlock
+  let adminUser = await prisma.user.findUnique({ where: { email: 'admin@ndeliki.co.ke' } });
+  if (adminUser) {
+    adminUser = await prisma.user.update({
+      where: { id: adminUser.id },
+      data: { password: adminPasswordHash, failedLoginAttempts: 0, lockedUntil: null, isActive: true },
+    });
+  } else {
+    adminUser = await prisma.user.create({
+      data: {
+        email: 'admin@ndeliki.co.ke',
+        phone: `admin-${Date.now()}`,
+        password: adminPasswordHash,
+        firstName: 'System',
+        lastName: 'Administrator',
+        isActive: true,
+        isEmailVerified: true,
+        mustChangePassword: false,
+      },
+    });
+  }
 
   // Assign admin role
   await prisma.userRole.upsert({
@@ -121,25 +123,26 @@ async function main() {
 
   const officerPasswordHash = await bcrypt.hash('Officer@2026!', 12);
 
-  const officerUser = await prisma.user.upsert({
-    where: { email: 'officer@ndeliki.co.ke' },
-    update: {
-      password: officerPasswordHash,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      isActive: true,
-    },
-    create: {
-      email: 'officer@ndeliki.co.ke',
-      phone: '0700000001',
-      password: officerPasswordHash,
-      firstName: 'Benard',
-      lastName: 'Muiruri',
-      isActive: true,
-      isEmailVerified: true,
-      mustChangePassword: true,
-    },
-  });
+  let officerUser = await prisma.user.findUnique({ where: { email: 'officer@ndeliki.co.ke' } });
+  if (officerUser) {
+    officerUser = await prisma.user.update({
+      where: { id: officerUser.id },
+      data: { password: officerPasswordHash, failedLoginAttempts: 0, lockedUntil: null, isActive: true },
+    });
+  } else {
+    officerUser = await prisma.user.create({
+      data: {
+        email: 'officer@ndeliki.co.ke',
+        phone: `officer-${Date.now()}`,
+        password: officerPasswordHash,
+        firstName: 'Benard',
+        lastName: 'Muiruri',
+        isActive: true,
+        isEmailVerified: true,
+        mustChangePassword: true,
+      },
+    });
+  }
 
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: officerUser.id, roleId: officerRole.id } },
