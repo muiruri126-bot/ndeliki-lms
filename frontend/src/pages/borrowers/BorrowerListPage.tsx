@@ -82,7 +82,7 @@ export default function BorrowerListPage() {
                     <td>
                       <span className={`badge ${
                         b.riskRating === 'LOW' ? 'badge-green' :
-                        b.riskRating === 'MEDIUM' ? 'badge-yellow' :
+                        b.riskRating === 'STANDARD' ? 'badge-yellow' :
                         'badge-red'
                       }`}>{b.riskRating}</span>
                     </td>

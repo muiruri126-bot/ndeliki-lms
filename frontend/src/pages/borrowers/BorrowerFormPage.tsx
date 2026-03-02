@@ -13,7 +13,7 @@ export default function BorrowerFormPage() {
     address: '', county: '', subCounty: '', ward: '',
     occupation: '', employer: '', monthlyIncome: '',
     nextOfKinName: '', nextOfKinPhone: '', nextOfKinRelationship: '',
-    riskRating: 'MEDIUM', notes: '',
+    riskRating: 'STANDARD', notes: '',
   });
 
   const mutation = useMutation({
@@ -141,8 +141,9 @@ export default function BorrowerFormPage() {
               <label className="label">Risk Rating</label>
               <select name="riskRating" className="input" value={form.riskRating} onChange={handleChange}>
                 <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
+                <option value="STANDARD">Standard</option>
                 <option value="HIGH">High</option>
+                <option value="BLACKLISTED">Blacklisted</option>
               </select>
             </div>
           </div>

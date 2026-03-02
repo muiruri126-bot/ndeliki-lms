@@ -1,4 +1,7 @@
-import { z } from 'zod';
+cd "c:\Users\Bmuiruri.PLANKE-KILIFI\Desktop\Benard\My Project\My work\loan app"
+git remote add origin https://github.com/YOUR_USERNAME/ndeliki-lms.git
+git branch -M main
+git push -u origin mainimport { z } from 'zod';
 
 export const createLoanSchema = z.object({
   borrowerId: z.string().uuid(),
