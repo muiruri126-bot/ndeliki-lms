@@ -14,6 +14,7 @@ export default function ChangePasswordPage() {
       await api.post('/auth/change-password', {
         currentPassword: form.currentPassword,
         newPassword: form.newPassword,
+        confirmPassword: form.confirmPassword,
       });
     },
     onSuccess: () => {
