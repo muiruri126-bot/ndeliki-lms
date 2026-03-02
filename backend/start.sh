@@ -12,7 +12,7 @@ echo "Running Prisma migrations..."
 npx prisma migrate deploy
 
 echo "Seeding database (if needed)..."
-npx prisma db seed || echo "Seeding skipped or already done."
+npx prisma db seed || node prisma/seed.js || echo "Seeding skipped or failed."
 
 echo "Starting server..."
 node dist/index.js

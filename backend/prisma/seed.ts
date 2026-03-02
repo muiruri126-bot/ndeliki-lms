@@ -86,7 +86,12 @@ async function main() {
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@ndeliki.co.ke' },
-    update: { password: adminPasswordHash },
+    update: {
+      password: adminPasswordHash,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      isActive: true,
+    },
     create: {
       email: 'admin@ndeliki.co.ke',
       phone: '0700000000',
@@ -118,7 +123,12 @@ async function main() {
 
   const officerUser = await prisma.user.upsert({
     where: { email: 'officer@ndeliki.co.ke' },
-    update: { password: officerPasswordHash },
+    update: {
+      password: officerPasswordHash,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      isActive: true,
+    },
     create: {
       email: 'officer@ndeliki.co.ke',
       phone: '0700000001',
